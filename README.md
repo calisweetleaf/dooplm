@@ -41,6 +41,36 @@ shape — best at K=2, worse past it — holds. See `RESULTS.md` for the full
 writeup, including the generation probe (the K=2 student degenerates into
 "the city of the city of the city...").
 
+## Follow-up: MoLA-style conversion test (2026-11-26)
+
+The Mixture-of-Loops Transformer (arXiv:2611.34923) proposes a mechanism
+for the drift: the residual stream compresses the previous loop into one
+vector, and passing computed KV as addressable memory across loops
+(Mixture-of-Loops Attention) should fix it. We tested it with the setup
+held exactly constant — same teacher, same student shape, same loss, same
+data, same 400 steps — changing only the loop block's attention to also
+read the previous loop's depth KV (positions j ≤ t, one shared softmax,
+no separate gate, zero added params). See `mola/`.
+
+**Verdict: MoLA does NOT rescue the small-scale case.** KL still rises
+past K=2 and PPL is best at K=2 — the same shape as the falsifier, and
+slightly worse at every K:
+
+| K | PPL | KL-to-teacher | vs falsifier PPL |
+|---|-----|---------------|------------------|
+| 1 | 231.53 | 2.7998 | 226.25 (+2.3%) |
+| 2 | 225.93 | 2.7722 | 222.21 (+1.7%) |
+| 3 | 331.00 | 3.1291 | 264.01 (+25%) |
+| 4 | 623.32 | 3.7413 | 463.53 (+34%) |
+
+The extra memory does not prevent the shared block from drifting with each
+extra application; at this scale it mildly amplifies the drift past K_max.
+The paper's own runs are 100B–400B tokens; this test is 400 steps (~1M
+tokens) — the rescue, if it exists, does not show up at this budget. The
+falsifier's verdict stands as scale-specific. Full writeup in
+`mola/RESULTS.md`, including the verification (manual attention proved
+exactly identical to the stock block in fp32, causality exact at 0.0).
+
 ## Files
 
 - `run_falsifier.py` — training + eval script (Colab)
@@ -49,11 +79,14 @@ writeup, including the generation probe (the K=2 student degenerates into
 - `student_config.json` — architecture spec
 - `RESULTS.md` — full writeup with run notes and the safety-warning record
 - `results.json`, `baseline.json` — numbers
+- `mola/` — the MoLA follow-up: `run_mola.py`, `RESULTS.md`,
+  `results.json`, `baseline.json`, `modeling_looped.py`,
+  `student_config.json`
 
 ## Weights
 
 The trained weights (`student_state.pt`, 149 MB, trainable params only, bf16)
-live on Hugging Face under **Somnus-Sovereign-Systems** (public) — they are
+are coming to Hugging Face under **Somnus-Sovereign-Systems** (public) — they are
 over GitHub's 100 MB per-file limit, so they don't live in this repo.
 Checkpoints (steps 100/200/300/400) are in the experiment archive.
 

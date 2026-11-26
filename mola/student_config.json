@@ -1,0 +1,26 @@
+{
+  "teacher": "Qwen/Qwen2.5-0.5B",
+  "architecture": "looped student (MoLA-style, Mixture-of-Loops arXiv:2611.34923)",
+  "in_blocks": [
+    0,
+    1
+  ],
+  "loop_block": 12,
+  "out_blocks": [
+    22,
+    23
+  ],
+  "loop_embedding": "2-layer MLP, hidden 256, trained from scratch",
+  "embed_and_lm_head": "frozen, tied, taken from teacher",
+  "mola": {
+    "mechanism": "loop block attention at loop r reads [prev-loop K/V (j<=t), current-loop K/V (j<=t)] in one shared softmax; no separate gate",
+    "mask_form": "prev-loop KV at positions j<=t (MoLT-KV-style prefix memory)",
+    "prev_kv": "post-rotary, single previous loop only, reused without re-rotation",
+    "gradients": "flow through cross-loop KV (loop forcing, 1:1 loop-loss weights)",
+    "added_params": 0
+  },
+  "trainable_M": 74.8,
+  "total_M": 210.9,
+  "teacher_M": 494,
+  "load": "build LoopedStudent from modeling_looped.py with the teacher, then load_state_dict(torch.load('student_state.pt'))"
+}
